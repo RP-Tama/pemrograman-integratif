@@ -1,31 +1,96 @@
 const grpc = require('@grpc/grpc-js');
-const { MongoClient, ObjectId } = require('mongodb');
-const dataProto = require('./data_pb');
-const { createData, readData, updateData, deleteData } = require('./data.controller');
+const protoLoader = require('@grpc/proto-loader');
+const mysql = require('mysql2');
 
-async function connectToDatabase() {
-  const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017';
-  const DB_NAME = process.env.DB_NAME || 'test';
-  const client = new MongoClient(MONGO_URL, { useUnifiedTopology: true });
-  await client.connect();
-  console.log(`Connected to MongoDB at ${MONGO_URL}`);
-  return client;
+const PROTO_PATH = './crud.proto';
+
+const packageDefinition = protoLoader.loadSync(PROTO_PATH);
+const userProto = grpc.loadPackageDefinition(packageDefinition).User;
+
+const pool = mysql.createPool({
+  host: 'localhost',
+  user: 'root',
+  password: '',
+  database: 'data',
+  waitForConnections: true,
+  connectionLimit: 10,
+});
+
+function getUser(call, callback) {
+  const userId = call.request.userId;
+  pool.query('SELECT * FROM users WHERE user_id = ?', [userId], (error, results) => {
+    if (error) {
+      console.error(error);
+      callback({ code: grpc.status.INTERNAL, message: 'Internal Server Error' });
+      return;
+    }
+    if (results.length === 0) {
+      callback({ code: grpc.status.NOT_FOUND, message: 'User not found' });
+      return;
+    }
+    const userData = results[0];
+    const user = {
+      userId: userData.user_id,
+      name: userData.name,
+      age: userData.age,
+    };
+    callback(null, user);
+  });
 }
 
-async function main() {
-  const server = new grpc.Server();
-  const PORT = process.env.PORT || 50051;
-  const dbClient = await connectToDatabase();
-
-  server.addService(dataProto.DataService.service, {
-    createData: createData,
-    readData: readData,
-    updateData: updateData,
-    deleteData: deleteData
+function addUser(call, callback) {
+  const userId = call.request.userId;
+  const name = call.request.name;
+  const age = call.request.age;
+  pool.query('INSERT INTO users (user_id, name, age) VALUES (?, ?, ?)', [userId, name, age], (error, result) => {
+    if (error) {
+      console.error(error);
+      callback({ code: grpc.status.INTERNAL, message: 'Internal Server Error' });
+      return;
+    }
+    const userId = result.insertId;
+    const user = { userId, name, age };
+    callback(null, user);
   });
+}
 
-  server.bindAsync(`0.0.0.0:${PORT}`, grpc.ServerCredentials.createInsecure(), () => {
-    console.log(`Server running at http://0.0.0.0:${PORT}`);
+function updateUser(call, callback) {
+  const userId = call.request.userId;
+  const name = call.request.name;
+  const age = call.request.age;
+  pool.query('UPDATE users SET name = ?, age = ? WHERE user_id = ?', [name, age, userId], error => {
+    if (error) {
+      console.error(error);
+      callback({ code: grpc.status.INTERNAL, message: 'Internal Server Error' });
+      return;
+    }
+    const user = { userId, name, age };
+    callback(null, user);
+  });
+}
+
+function deleteUser(call, callback) {
+  const userId = call.request.userId;
+  pool.query('DELETE FROM users WHERE user_id = ?', [userId], error => {
+    if (error) {
+      console.error(error);
+      callback({ code: grpc.status.INTERNAL, message: 'Internal Server Error' });
+      return;
+    }
+    callback(null, {});
+  });
+}
+
+function main() {
+  const server = new grpc.Server();
+  server.addService(userProto.UserService.service, {
+    getUser,
+    addUser,
+    updateUser,
+    deleteUser,
+  });
+  server.bindAsync('127.0.0.1:5000', grpc.ServerCredentials.createInsecure(), () => {
+    console.log('Server running at http://127.0.0.1:5000');
     server.start();
   });
 }

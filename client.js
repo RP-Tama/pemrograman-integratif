@@ -1,63 +1,80 @@
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
-const packageDefinition = protoLoader.loadSync('./data.proto');
-const dataProto = grpc.loadPackageDefinition(packageDefinition).Data;
 
-const client = new dataProto.DataService('localhost:50051', grpc.credentials.createInsecure());
+const PROTO_PATH = './crud.proto';
 
-function createData() {
-  const data = {
-    id: '123',
-    name: 'John Doe',
-    email: 'johndoe@example.com'
-  };
-  client.createData(data, (err, response) => {
-    if (err) {
-      console.error(err);
-      return;
-    }
-    console.log(response);
+const packageDefinition = protoLoader.loadSync(PROTO_PATH);
+const userProto = grpc.loadPackageDefinition(packageDefinition).User;
+
+const client = new userProto.UserService('localhost:5000', grpc.credentials.createInsecure());
+
+function getUser(userId) {
+  return new Promise((resolve, reject) => {
+    client.getUser({ userId }, (error, user) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(user);
+      }
+    });
   });
 }
 
-function readData() {
-  const id = '123';
-  client.readData({ id }, (err, response) => {
-    if (err) {
-      console.error(err);
-      return;
-    }
-    console.log(response);
+
+function addUser(userId, name, age) {
+  return new Promise((resolve, reject) => {
+    const user = { userId,   name, age };
+    client.addUser(user, (error, response) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(response);
+      }
+    });
   });
 }
 
-function updateData() {
-  const data = {
-    id: '123',
-    name: 'John Smith',
-    email: 'johnsmith@example.com'
-  };
-  client.updateData(data, (err, response) => {
-    if (err) {
-      console.error(err);
-      return;
-    }
-    console.log(response);
+function updateUser(userId, name, age) {
+  return new Promise((resolve, reject) => {
+    const user = { userId, name, age };
+    client.updateUser(user, (error, response) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(response);
+      }
+    });
   });
 }
 
-function deleteData() {
-  const id = '123';
-  client.deleteData({ id }, (err, response) => {
-    if (err) {
-      console.error(err);
-      return;
-    }
-    console.log(response);
+function deleteUser(userId) {
+  return new Promise((resolve, reject) => {
+    client.deleteUser({ userId }, (error, response) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(response);
+      }
+    });
   });
 }
 
-createData();
-readData();
-updateData();
-deleteData();
+async function test() {
+  try {
+    const user = await getUser(7);
+    console.log('getUser:', user);
+
+    const newUser = await addUser(3,'tono', 40);
+    console.log('addUser:', newUser);
+
+    const updatedUser = await updateUser(8, 'alex', 17);
+    console.log('updateUser:', updatedUser);
+
+    const result = await deleteUser(10);
+    console.log('deleteUser:', result);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+test();

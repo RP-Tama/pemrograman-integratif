@@ -5,7 +5,7 @@ async function createData(call, callback) {
       const db = await connect();
   
       const requestData = call.request;
-  const newData = database.create(requestData);
+  const newData = await database.create(requestData);
   callback(null, {data: newData});
   
       callback(null, { success: true });
@@ -20,7 +20,7 @@ async function createData(call, callback) {
       const db = await connect();
   
       const requestData = call.request;
-      database.delete(requestData.id);
+      await database.delete(requestData.id);
       callback(null, {});
   
       callback(null, { success: true });
@@ -35,7 +35,7 @@ async function createData(call, callback) {
       const db = await connect();
   
       const requestData = call.request;
-      const retrievedData = database.read(requestData.id);
+      const retrievedData = await database.read(requestData.id);
       callback(null, {data: retrievedData});
   
       callback(null, { success: true });
@@ -50,7 +50,7 @@ async function createData(call, callback) {
       const db = await connect();
   
       const requestData = call.request;
-  const updatedData = database.update(requestData);
+  const updatedData = await database.update(requestData);
   callback(null, {data: updatedData});
   
       callback(null, { success: true });
