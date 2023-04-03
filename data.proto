@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package data;
+
+message Data {
+    string id = 1;
+    string name = 2;
+    int32 age = 3;
+}
+
+service DataService {
+    rpc createData (Data) returns (Data);
+    rpc readData (Data) returns (Data);
+    rpc updateData (Data) returns (Data);
+    rpc deleteData (Data) returns (Data);
+}
